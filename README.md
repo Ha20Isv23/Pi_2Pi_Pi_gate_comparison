@@ -1,128 +1,229 @@
-# Multi-Channel Rydberg Blockade Gate Simulation
+# Multi-Channel Rydberg Blockade Gate Simulation  
 ## Walker–Saffman Effective Shift vs Full Pair-State Diagonalisation
 
-### Overview
-This repository contains numerical simulations of a two-qubit Rydberg blockade π–2π–π entangling gate in neutral atoms.
-We compare three models for the doubly-excited manifold:
+---
 
-- **WS(all)**: Walker–Saffman (2008) effective blockade shift using a channel sum
-- **WS(dom)**: dominant-channel reduction (diagnostic)
-- **Full(2A)**: full diagonalisation of the ARC pair interaction matrix and coherent propagation including all channels
+## Overview
 
-The focus is on identifying when a scalar effective blockade model is valid and when multi-channel (“spaghetti”) physics leads to blockade breakdown.
+This repository contains numerical simulations of a two-qubit Rydberg blockade $\pi$ -- $2\pi$ -- $\pi$ entangling gate in neutral atoms.
+
+We compare three treatments of the doubly-excited manifold:
+
+1. **WS(all)** – Walker–Saffman effective blockade shift (channel sum) -> from paper https://journals.aps.org/pra/abstract/10.1103/PhysRevA.77.032723
+2. **WS(dom)** – dominant-channel approximation -> same paper, but we only consider the channel with the biggest weight in the sum
+3. **Full(2A)** – full diagonalisation of the ARC pair interaction matrix and coherent propagation including all channels
+
+The objective is to determine when a scalar effective blockade model is valid and when multi-channel dipole–dipole mixing (“spaghetti” structure) leads to blockade breakdown.
 
 ---
 
-### Gate protocol
-Standard blockade CZ protocol:
-1) π pulse on the control atom (Ωc=Ω, Ωt=0)
-2) 2π pulse on the target atom (Ωc=0, Ωt=Ω)
-3) π pulse on the control atom (Ωc=Ω, Ωt=0)
+## Gate Protocol
+
+Standard blockade sequence:
+
+$$
+\pi \; (\text{control})
+\;\rightarrow\;
+2\pi \; (\text{target})
+\;\rightarrow\;
+\pi \; (\text{control})
+$$
+
+Laser Rabi frequency: $\Omega$  
+Optional single-photon detuning: $\delta$
 
 ---
 
-### Pair interaction model (ARC)
-For each interatomic distance R, ARC provides a truncated pair-state Hamiltonian m(R) (in frequency units).
+## Pair-State Interaction Model (ARC)
 
-We diagonalise:
-    m(R) |ν> = Δν(R) |ν>
+For each interatomic distance $R$, ARC constructs the pair interaction matrix:
 
-where |ν> are interaction eigenchannels and Δν are channel shifts (converted to Hz in the code).
+$$
+m(R) = m_{\text{diag}} + \sum_k \frac{m_{3+k}}{R^{3+k}}.
+$$
 
-The addressed bare doubly-excited state is |rr>.
-Overlaps:
-    cν = <rr|ν>
-Completeness sanity check:
-    sumν |cν|^2 ≈ 1   (if the full spectrum is retained)
+Diagonalisation yields eigenchannels:
 
----
+$$
+m(R)\,|\nu\rangle = \Delta_\nu(R)\,|\nu\rangle.
+$$
 
-### Effective blockade models
+The overlap between the addressed bare pair state $|rr\rangle$ and eigenchannels is:
 
-**WS(all): Walker–Saffman effective blockade shift**
-The doubly-excited manifold is reduced to a single effective detuning B defined by:
-    1 / B^2 = sumν ( |cν|^2 / Δν^2 )
+$$
+c_\nu = \langle rr | \nu \rangle.
+$$
 
-Important: this sum is positive term-by-term and is highly sensitive to small |Δν|.
+Completeness is verified numerically:
 
-**WS(dom): dominant-channel approximation**
-Let ν* = argmaxν |cν|^2.
-Then define:
-    B_dom = |Δν*|
-(Used as a diagnostic for “effectively single-channel” regimes.)
-
-**Full(2A): full eigenchannel propagation**
-We keep all channels explicitly with diagonal energies Δν and laser couplings proportional to cν.
+$$
+\sum_\nu |c_\nu|^2 \approx 1.
+$$
 
 ---
 
-### Gate propagation basis
-Hybrid propagation basis:
-- computational: |00>, |01>, |10>, |11>  (4 states)
-- single Rydberg: |r0>, |r1>, |0r>, |1r>  (4 states)
-- double Rydberg:
-  - WS: one effective state (total dimension 9)
-  - Full: channel basis {|ν>} (total dimension 8 + Nchannels)
+## Effective Blockade Models
 
-Detuning convention used in code:
-- single-excitation manifold: +δ
-- double-excitation manifold: +2δ
-(δ in Hz; Hamiltonian uses 2π×Hz if expressed in rad/s.)
+### 1. Walker–Saffman Effective Shift (WS2008)
 
-Time evolution uses scipy.sparse.linalg.expm_multiply on a batched matrix of 4 initial computational vectors.
+The entire doubly-excited manifold is replaced by a single effective blockade shift $B$ defined by:
+
+
+$$
+\frac{1}{B^2}=
+\sum_\nu
+\frac{|c_\nu|^2}{\Delta_\nu^2}.
+$$
+
+This expression assumes perturbative, off-resonant coupling and neglects coherent multi-channel interference.
 
 ---
 
-### Fidelity / leakage metrics
-We extract the computational block M (4×4) from the full propagator (generally non-unitary due to leakage).
+### 2. Dominant-Channel Approximation
 
-Survival probability (average over computational inputs):
-    P_surv = Tr(M† M) / 4
+Define the dominant channel:
+
+$$
+\nu^* = \arg\max_\nu |c_\nu|^2,
+$$
+
+and
+
+$$
+B_{\text{dom}} = |\Delta_{\nu^*}|.
+$$
+
+This approximation is used diagnostically to determine whether the system behaves effectively single-channel.
+
+---
+
+### 3. Full Diagonalisation (2A)
+
+All eigenchannels are retained explicitly in coherent propagation:
+
+
+$$ H=
+H_{\text{laser}}
++
+\sum_\nu
+\Delta_\nu
+|\nu\rangle\langle\nu|.
+$$
+
+Laser coupling to each channel scales with $c_\nu$.
+
+No scalar reduction is applied.
+
+---
+
+
+Four computational basis vectors are propagated simultaneously.
+
+The computational block $M$ (4×4) is extracted from the full propagator.
+
+---
+
+## Fidelity and Leakage
+
+Average survival probability:
+
+
+$$
+P_{\text{surv}}=
+\frac{1}{4}
+\mathrm{Tr}(M^\dagger M).
+$$
 
 Leakage proxy:
-    Leakage = 1 - P_surv
 
-A leakage-aware proxy for average fidelity is computed from M using:
-- polar decomposition to get nearest unitary U_eff on the computational subspace
-- maximization over local Z phases (analysis-only compensation) to compare to ideal CZ
 
-Infidelity reported:
-    1 - F_avg
+$$
+\text{Leakage}=
+1 - P_{\text{surv}}.
+$$
 
----
+Leakage-aware average gate fidelity:
 
-### Physical regimes and expected behavior
 
-**Large R (vdW / weak-mixing regime)**
-- Dipole-dipole mixing weak; |rr> overlaps mostly with one eigenchannel:
-      |cν*|^2 → 1
-- Models converge:
-      WS(all) ≈ WS(dom) ≈ Full(2A)
+$$
+F_{\text{avg}}=
+\frac{
+\mathrm{Tr}(M^\dagger M)
++
+\left|
+\mathrm{Tr}
+\left(
+U_{CZ}^\dagger
+(Z \otimes Z)
+U_{\text{eff}}
+\right)
+\right|^2
+}{20}.
+$$
 
-**Small R (strong mixing / “spaghetti” regime)**
-- Dipole-dipole couplings scale ~ 1/R^3 and become large
-- Dense avoided crossings; eigenvalues reshuffle; small |Δν| become likely
-- Full(2A) can predict blockade breakdown due to coherent multi-channel dynamics
-- WS(all) may either (i) become overly pessimistic (dominated by weakly coupled small-Δ channels via 1/Δ^2), or (ii) miss coherent multi-channel effects depending on regime
-- WS(dom) tracks Full only when dynamics remains effectively single-channel
+Infidelity:
 
-A useful diagnostic:
-    tν = |cν|^2 / Δν^2
-    f = max(tν) / sum(tν)
-If f≈1 the WS(all) sum is dominated by one term and WS(all)≈WS(dom).
-
----
-
-### Requirements
-- Python ≥ 3.9
-- numpy, scipy, matplotlib
-- ARC (Alkali Rydberg Calculator)
-
-Install ARC:
-    pip install ARC-Alkali-Rydberg-Calculator
+$$
+1 - F_{\text{avg}}.
+$$
 
 ---
 
-### Notes
-- The baseline model is coherent (unitary) unless additional decoherence is explicitly added.
-- ARC basis truncation parameters (n-range, l-range, Δmax, etc.) can strongly affect the channel spectrum in the strong-mixing regime.
+## Physical Regimes
+
+### Large $R$ (van der Waals regime)
+
+- Weak dipole–dipole mixing
+- Single-channel dominance
+- $|c_{\nu^*}|^2 \rightarrow 1$
+- All models converge:
+
+$$
+\text{WS(all)} \approx \text{WS(dom)} \approx \text{Full}.
+$$
+
+---
+
+### Intermediate Regime
+
+- Multiple channels contribute
+- Small $|\Delta_\nu|$ begin to appear
+- WS(all) sensitive to weakly coupled near-resonant channels
+- WS(dom) often tracks Full more closely
+
+---
+
+### Small $R$ (Strong Mixing / “Spaghetti” Regime)
+
+- Dipole–dipole coupling $\sim 1/R^3$ becomes large
+- Dense avoided crossings
+- Eigenvalue reshuffling
+- Small $|\Delta_\nu|$ statistically likely
+- Full model predicts blockade breakdown due to coherent multi-channel dynamics
+- WS scalar reduction may significantly misestimate fidelity
+
+---
+
+## Interpretation of Model Differences
+
+WS(all) computes a scalar sum:
+
+$$
+\sum_\nu
+\frac{|c_\nu|^2}{\Delta_\nu^2},
+$$
+
+which is always positive and ignores phase information.
+
+Full dynamics evolves coherent amplitudes:
+
+$$
+\sum_\nu
+c_\nu e^{-i \Delta_\nu t},
+$$
+
+allowing interference and dynamical cancellation.
+
+Agreement at large $R$ reflects restoration of perturbative single-channel blockade.
+
+
